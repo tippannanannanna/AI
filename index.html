@@ -89,6 +89,29 @@
             transform: none;
             box-shadow: none;
         }
+        .text-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .text-input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb;
+            font-size: 1rem;
+        }
+        .send-button {
+            padding: 0.75rem 1rem;
+            background-color: #4f46e5;
+            color: white;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .send-button:hover {
+            background-color: #4338ca;
+        }
         .loading-dots {
             display: flex;
             justify-content: center;
@@ -115,7 +138,7 @@
         <!-- Header -->
         <div class="chat-header rounded-t-2xl">
             <h1 class="text-xl font-bold text-gray-700">AI Voice Chat</h1>
-            <p class="text-sm text-gray-500 mt-1">Talk to me! I'll listen and respond.</p>
+            <p class="text-sm text-gray-500 mt-1">Talk to me or type your message below!</p>
         </div>
 
         <!-- Chat Messages -->
@@ -131,6 +154,10 @@
             <button id="speech-button" class="speech-button">
                 Start Talking
             </button>
+            <div class="text-input-group mt-4">
+                <input type="text" id="text-input" class="text-input" placeholder="Type your message...">
+                <button id="send-button" class="send-button">Send</button>
+            </div>
         </div>
     </div>
 
@@ -144,6 +171,8 @@
             // DOM elements
             const chatMessagesEl = document.getElementById('chat-messages');
             const speechButton = document.getElementById('speech-button');
+            const textInput = document.getElementById('text-input');
+            const sendButton = document.getElementById('send-button');
             const statusMessageEl = document.getElementById('status-message');
 
             // Set up Speech Recognition
@@ -157,7 +186,6 @@
             } else {
                 statusMessageEl.textContent = 'Speech Recognition is not supported by your browser.';
                 speechButton.disabled = true;
-                return;
             }
 
             let isListening = false;
@@ -177,12 +205,21 @@
                 statusMessageEl.innerHTML = message;
             };
 
-            const toggleButtonState = (listening, disabled) => {
+            const toggleSpeechButtonState = (listening, disabled) => {
                 isListening = listening;
                 speechButton.textContent = isListening ? 'Stop Talking' : 'Start Talking';
                 speechButton.disabled = disabled;
                 speechButton.classList.toggle('bg-red-500', isListening);
                 speechButton.classList.toggle('bg-violet-600', !isListening);
+            };
+
+            const toggleSendButtonState = (disabled) => {
+                sendButton.disabled = disabled;
+                textInput.disabled = disabled;
+                sendButton.classList.toggle('bg-gray-400', disabled);
+                sendButton.classList.toggle('hover:bg-violet-700', !disabled);
+                sendButton.classList.toggle('cursor-not-allowed', disabled);
+                sendButton.classList.toggle('cursor-pointer', !disabled);
             };
 
             const showLoadingDots = () => {
@@ -241,7 +278,8 @@
 
                 if (!aiText) {
                     setStatus('Could not get a response from the AI. Please try again.');
-                    toggleButtonState(false, false);
+                    toggleSpeechButtonState(false, false);
+                    toggleSendButtonState(false);
                     return;
                 }
 
@@ -281,11 +319,13 @@
                     audioPlayer.onended = () => {
                         isPlaying = false;
                         setStatus('Ready to chat.');
-                        toggleButtonState(false, false);
+                        toggleSpeechButtonState(false, false);
+                        toggleSendButtonState(false);
                     };
                 } else {
                     setStatus('AI response is ready, but audio could not be generated. Please try again.');
-                    toggleButtonState(false, false);
+                    toggleSpeechButtonState(false, false);
+                    toggleSendButtonState(false);
                 }
             };
             
@@ -353,25 +393,43 @@
             speechButton.addEventListener('click', () => {
                 if (isListening) {
                     recognition.stop();
-                    toggleButtonState(false, true); // Disable button while processing
+                    toggleSpeechButtonState(false, true);
+                    toggleSendButtonState(true);
                     setStatus('Processing...');
                 } else {
-                    // If audio is playing, stop it first
                     if (isPlaying) {
                         audioPlayer.pause();
                         audioPlayer.currentTime = 0;
                         isPlaying = false;
                     }
                     recognition.start();
-                    toggleButtonState(true, false);
+                    toggleSpeechButtonState(true, false);
+                    toggleSendButtonState(true);
                     setStatus('Listening...');
+                }
+            });
+
+            sendButton.addEventListener('click', () => {
+                const text = textInput.value.trim();
+                if (text) {
+                    appendMessage(text, 'user');
+                    textInput.value = '';
+                    toggleSpeechButtonState(false, true);
+                    toggleSendButtonState(true);
+                    getAiResponse(text);
+                }
+            });
+
+            textInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    sendButton.click();
                 }
             });
 
             // Speech recognition events
             recognition.onstart = () => {
                 setStatus('Listening...');
-                toggleButtonState(true, false);
+                toggleSpeechButtonState(true, false);
             };
 
             recognition.onresult = (event) => {
@@ -381,7 +439,8 @@
                     getAiResponse(transcript);
                 } else {
                     setStatus('Could not understand your voice. Please try again.');
-                    toggleButtonState(false, false);
+                    toggleSpeechButtonState(false, false);
+                    toggleSendButtonState(false);
                 }
             };
 
@@ -394,16 +453,16 @@
                 } else {
                     setStatus(`Error: ${event.error}. Please try again.`);
                 }
-                toggleButtonState(false, false);
+                toggleSpeechButtonState(false, false);
+                toggleSendButtonState(false);
             };
 
             // When recognition ends
             recognition.onend = () => {
-                // The button state is already handled by onresult or onerror.
-                // This is a failsafe.
                 if (statusMessageEl.textContent === 'Listening...') {
                     setStatus('Stopped listening.');
-                    toggleButtonState(false, false);
+                    toggleSpeechButtonState(false, false);
+                    toggleSendButtonState(false);
                 }
             };
         });
