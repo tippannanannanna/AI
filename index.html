@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Chat Tool</title>
+    <title>AI Interview Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -15,47 +15,115 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl flex flex-col h-[80vh]">
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl flex flex-col h-[90vh]">
 
         <!-- Header -->
         <header class="mb-4 text-center">
-            <h1 class="text-3xl font-bold text-gray-800">AI Chat Tool</h1>
-            <p class="text-sm text-gray-500">Powered by a large language model.</p>
+            <h1 class="text-3xl font-bold text-gray-800">AI Interview Tool</h1>
+            <p class="text-sm text-gray-500">Practice your interview skills with an AI HR agent.</p>
         </header>
 
-        <!-- Chat messages container -->
-        <div id="chat-container" class="flex-grow overflow-y-auto space-y-4 p-4 rounded-lg bg-gray-50 mb-4">
-            <!-- Messages will be appended here -->
-        </div>
-
-        <!-- Loading spinner -->
-        <div id="loading" class="flex justify-center items-center mb-4 hidden">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-
-        <!-- Input area -->
-        <div class="flex space-x-2">
-            <input type="text" id="user-input" placeholder="Type your message here..."
-                   class="flex-grow p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
-            <button id="send-btn"
-                    class="bg-blue-600 text-white p-3 rounded-xl font-semibold hover:bg-blue-700 transition duration-200 shadow-md">
-                Send
+        <!-- Initial setup area -->
+        <div id="setup-container" class="flex-grow flex flex-col items-center justify-center p-4">
+            <h2 class="text-xl font-semibold mb-4 text-center text-gray-700">Paste your interview questions here (one per line):</h2>
+            <textarea id="questions-input" class="w-full h-48 p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" placeholder="e.g.&#10;Tell me about yourself.&#10;What are your strengths?&#10;Why do you want to work here?"></textarea>
+            <button id="start-interview-btn" class="bg-blue-600 text-white p-3 px-8 rounded-xl font-semibold hover:bg-blue-700 transition duration-200 shadow-md">
+                Start Interview
             </button>
         </div>
 
+        <!-- Main chat area -->
+        <div id="chat-wrapper" class="hidden flex-grow flex flex-col">
+            <div id="chat-container" class="flex-grow overflow-y-auto space-y-4 p-4 rounded-lg bg-gray-50 mb-4">
+                <!-- Messages will be appended here -->
+            </div>
+
+            <div id="loading" class="flex justify-center items-center mb-4 hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+            
+            <audio id="audio-player" class="hidden"></audio>
+
+            <!-- Input area -->
+            <div class="flex space-x-2">
+                <input type="text" id="user-input" placeholder="Type your answer here..."
+                       class="flex-grow p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                <button id="send-btn"
+                        class="bg-blue-600 text-white p-3 rounded-xl font-semibold hover:bg-blue-700 transition duration-200 shadow-md">
+                    Submit Answer
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
-        const apiKey = "" //AIzaSyBgrKqJixLyym04uZOu5FWX50mtCGDqugA
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const apiKey = ""; AIzaSyBgrKqJixLyym04uZOu5FWX50mtCGDqugA
+        const chatApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+        
+        const setupContainer = document.getElementById('setup-container');
+        const questionsInput = document.getElementById('questions-input');
+        const startInterviewBtn = document.getElementById('start-interview-btn');
+        const chatWrapper = document.getElementById('chat-wrapper');
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const loadingSpinner = document.getElementById('loading');
-        
-        // Define chat history
-        const chatHistory = [];
-        
+        const audioPlayer = document.getElementById('audio-player');
+
+        let interviewQuestions = [];
+        let currentQuestionIndex = 0;
+        let isInterviewActive = false;
+        let chatHistory = [];
+        let speakerName = "HR Agent";
+
+        // Helper function to convert base64 PCM to WAV Blob
+        function base64ToWavBlob(base64Data, sampleRate = 16000, numChannels = 1, bitDepth = 16) {
+            const audioData = atob(base64Data);
+            const arrayBuffer = new ArrayBuffer(audioData.length);
+            const view = new Uint8Array(arrayBuffer);
+            for (let i = 0; i < audioData.length; i++) {
+                view[i] = audioData.charCodeAt(i);
+            }
+
+            const pcm16 = new Int16Array(arrayBuffer);
+            const wavData = new ArrayBuffer(44 + pcm16.length * 2);
+            const wavView = new DataView(wavData);
+
+            // WAV header
+            // RIFF chunk
+            writeString(wavView, 0, 'RIFF');
+            wavView.setUint32(4, 36 + pcm16.length * 2, true);
+            writeString(wavView, 8, 'WAVE');
+            // FMT chunk
+            writeString(wavView, 12, 'fmt ');
+            wavView.setUint32(16, 16, true);
+            wavView.setUint16(20, 1, true); // Audio format: PCM
+            wavView.setUint16(22, numChannels, true);
+            wavView.setUint32(24, sampleRate, true);
+            wavView.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);
+            wavView.setUint16(32, numChannels * bitDepth / 8, true);
+            wavView.setUint16(34, bitDepth, true);
+            // DATA chunk
+            writeString(wavView, 36, 'data');
+            wavView.setUint32(40, pcm16.length * 2, true);
+
+            // Write PCM data
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++) {
+                wavView.setInt16(offset, pcm16[i], true);
+                offset += 2;
+            }
+
+            return new Blob([wavData], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
         // Function to create and append a chat message element
         function appendMessage(role, text) {
             const messageDiv = document.createElement('div');
@@ -67,72 +135,187 @@
                     ? 'bg-blue-500 text-white rounded-br-none'
                     : 'bg-gray-200 text-gray-800 rounded-bl-none'
             }`;
-            messageBubble.textContent = text;
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.className = `text-xs font-semibold mb-1 ${role === 'user' ? 'text-right' : 'text-left'}`;
+            messageHeader.textContent = role === 'user' ? 'You' : speakerName;
+
+            messageBubble.appendChild(messageHeader);
+
+            const messageText = document.createElement('div');
+            messageText.textContent = text;
+            messageBubble.appendChild(messageText);
+
             messageDiv.appendChild(messageBubble);
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Function to send a message to the AI
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (message.length === 0) return;
-
-            // Display user message
-            appendMessage('user', message);
-            userInput.value = '';
-            
-            // Add user message to history
-            chatHistory.push({ role: 'user', parts: [{ text: message }] });
-
-            // Show loading spinner
-            loadingSpinner.classList.remove('hidden');
+        // Function to speak the next question
+        async function speakQuestion(question) {
+            appendMessage('model', question);
             sendBtn.disabled = true;
+            loadingSpinner.classList.remove('hidden');
 
             try {
                 const payload = {
-                    contents: chatHistory
+                    contents: [{
+                        parts: [{
+                            text: question
+                        }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: {
+                                    voiceName: "Kore"
+                                }
+                            }
+                        }
+                    },
                 };
 
-                const response = await fetch(apiUrl, {
+                const response = await fetch(ttsApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`TTS HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
-                const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
-                if (aiResponse) {
-                    // Display AI message
-                    appendMessage('model', aiResponse);
-                    
-                    // Add AI message to history
-                    chatHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
+                if (audioData) {
+                    const audioBlob = base64ToWavBlob(audioData);
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.play();
+                }
+
+            } catch (error) {
+                console.error('Error with TTS:', error);
+                appendMessage('model', 'Sorry, I couldn\'t generate the audio for this question.');
+            } finally {
+                loadingSpinner.classList.add('hidden');
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+        
+        // Main function to ask the next question or end the interview
+        async function askNextQuestion() {
+            if (currentQuestionIndex < interviewQuestions.length) {
+                const question = interviewQuestions[currentQuestionIndex];
+                await speakQuestion(question);
+                chatHistory.push({ role: 'model', parts: [{ text: question }] });
+            } else {
+                appendMessage('model', "That concludes our interview. Thank you for your time!");
+                isInterviewActive = false;
+                sendBtn.disabled = true;
+                userInput.disabled = true;
+            }
+        }
+
+        // Function to send a message (user answer) to the AI for feedback
+        async function processUserAnswer() {
+            const userResponse = userInput.value.trim();
+            if (userResponse.length === 0) return;
+
+            // Display user message
+            appendMessage('user', userResponse);
+            userInput.value = '';
+
+            // Get the last asked question
+            const lastQuestion = interviewQuestions[currentQuestionIndex];
+            
+            // Add the user's response to chat history
+            chatHistory.push({ role: 'user', parts: [{ text: userResponse }] });
+
+            // Show loading spinner
+            loadingSpinner.classList.remove('hidden');
+            sendBtn.disabled = true;
+
+            try {
+                // Construct the prompt for feedback
+                const prompt = `You are a professional HR manager and career coach. Your task is to provide constructive feedback on a candidate's answer to an interview question. The previous question was: "${lastQuestion}". The candidate's response was: "${userResponse}".
+
+                Please provide 1-2 concise, constructive points of feedback. Focus on what was good about the answer and one area for improvement. End your response by asking the next interview question. If you have no more questions to ask, provide a concluding remark.`;
+
+                const payload = {
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    systemInstruction: {
+                        parts: [{ text: "You are an HR professional. Your goal is to provide helpful feedback to a candidate and guide them through an interview." }]
+                    },
+                };
+
+                const response = await fetch(chatApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Chat HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiFeedback = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiFeedback) {
+                    currentQuestionIndex++;
+                    await speakQuestion(aiFeedback);
                 } else {
-                    appendMessage('model', 'Sorry, I couldn\'t generate a response.');
+                    appendMessage('model', 'Sorry, I couldn\'t generate feedback. Let\'s move on.');
+                    currentQuestionIndex++;
+                    await askNextQuestion();
                 }
 
             } catch (error) {
                 console.error('Error:', error);
                 appendMessage('model', 'An error occurred. Please try again.');
+                currentQuestionIndex++;
+                await askNextQuestion();
             } finally {
-                // Hide loading spinner and re-enable button
                 loadingSpinner.classList.add('hidden');
                 sendBtn.disabled = false;
-                userInput.focus(); // Keep focus on the input field
+                userInput.focus();
             }
         }
 
         // Event listeners
-        sendBtn.addEventListener('click', sendMessage);
+        startInterviewBtn.addEventListener('click', () => {
+            const questionsText = questionsInput.value.trim();
+            if (questionsText.length === 0) {
+                appendMessage('model', 'Please provide at least one interview question.');
+                return;
+            }
+            interviewQuestions = questionsText.split('\n').map(q => q.trim()).filter(q => q.length > 0);
+            
+            setupContainer.classList.add('hidden');
+            chatWrapper.classList.remove('hidden');
+            isInterviewActive = true;
+            
+            appendMessage('model', "Welcome to the interview simulation. I will ask you questions from the list you provided. Please provide your best answers. Let's begin!");
+            
+            // Give a short delay before asking the first question
+            setTimeout(askNextQuestion, 2000);
+        });
+
+        sendBtn.addEventListener('click', () => {
+            if (isInterviewActive) {
+                processUserAnswer();
+            }
+        });
+
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                sendMessage();
+                if (isInterviewActive) {
+                    processUserAnswer();
+                }
             }
         });
 
