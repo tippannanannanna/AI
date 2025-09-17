@@ -3,322 +3,410 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Interview Tool</title>
+    <title>AI Voice Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
+            color: #374151;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 640px;
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            min-height: 500px;
+            overflow: hidden;
+        }
+        .chat-header {
+            background-color: #f9fafb;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .message {
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 1.25rem;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #3b82f6;
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .ai-message {
+            background-color: #e5e7eb;
+            color: #374151;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+        .input-area {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .speech-button {
+            padding: 1rem;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .speech-button:hover {
+            background-color: #4338ca;
+            transform: translateY(-2px);
+        }
+        .speech-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .loading-dots {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .loading-dot {
+            width: 0.75rem;
+            height: 0.75rem;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            animation: bounce 1s infinite;
+        }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl flex flex-col h-[90vh]">
-
+<body>
+    <div class="chat-container">
         <!-- Header -->
-        <header class="mb-4 text-center">
-            <h1 class="text-3xl font-bold text-gray-800">AI Interview Tool</h1>
-            <p class="text-sm text-gray-500">Practice your interview skills with an AI HR agent.</p>
-        </header>
-
-        <!-- Initial setup area -->
-        <div id="setup-container" class="flex-grow flex flex-col items-center justify-center p-4">
-            <h2 class="text-xl font-semibold mb-4 text-center text-gray-700">Paste your interview questions here (one per line):</h2>
-            <textarea id="questions-input" class="w-full h-48 p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4" placeholder="e.g.&#10;Tell me about yourself.&#10;What are your strengths?&#10;Why do you want to work here?"></textarea>
-            <button id="start-interview-btn" class="bg-blue-600 text-white p-3 px-8 rounded-xl font-semibold hover:bg-blue-700 transition duration-200 shadow-md">
-                Start Interview
-            </button>
+        <div class="chat-header rounded-t-2xl">
+            <h1 class="text-xl font-bold text-gray-700">AI Voice Chat</h1>
+            <p class="text-sm text-gray-500 mt-1">Talk to me! I'll listen and respond.</p>
         </div>
 
-        <!-- Main chat area -->
-        <div id="chat-wrapper" class="hidden flex-grow flex flex-col">
-            <div id="chat-container" class="flex-grow overflow-y-auto space-y-4 p-4 rounded-lg bg-gray-50 mb-4">
-                <!-- Messages will be appended here -->
-            </div>
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="chat-messages">
+            <div class="ai-message">Hello! I'm ready to chat. Click the microphone button to start talking.</div>
+        </div>
 
-            <div id="loading" class="flex justify-center items-center mb-4 hidden">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <!-- Input Area -->
+        <div class="input-area rounded-b-2xl">
+            <div id="status-message" class="text-center text-sm font-medium text-gray-500">
+                Ready to chat.
             </div>
-            
-            <audio id="audio-player" class="hidden"></audio>
-
-            <!-- Input area -->
-            <div class="flex space-x-2">
-                <input type="text" id="user-input" placeholder="Type your answer here..."
-                       class="flex-grow p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
-                <button id="send-btn"
-                        class="bg-blue-600 text-white p-3 rounded-xl font-semibold hover:bg-blue-700 transition duration-200 shadow-md">
-                    Submit Answer
-                </button>
-            </div>
+            <button id="speech-button" class="speech-button">
+                Start Talking
+            </button>
         </div>
     </div>
 
     <script>
-        const apiKey = ""; AIzaSyBgrKqJixLyym04uZOu5FWX50mtCGDqugA
-        const chatApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
-        
-        const setupContainer = document.getElementById('setup-container');
-        const questionsInput = document.getElementById('questions-input');
-        const startInterviewBtn = document.getElementById('start-interview-btn');
-        const chatWrapper = document.getElementById('chat-wrapper');
-        const chatContainer = document.getElementById('chat-container');
-        const userInput = document.getElementById('user-input');
-        const sendBtn = document.getElementById('send-btn');
-        const loadingSpinner = document.getElementById('loading');
-        const audioPlayer = document.getElementById('audio-player');
+        document.addEventListener('DOMContentLoaded', () => {
+            // NOTE: The API key is provided by the runtime environment.
+            // If you are running this code locally, you would replace the empty string with your own API key.
+            const apiKey = "";AIzaSyBgrKqJixLyym04uZOu5FWX50mtCGDqugA
+            const apiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-        let interviewQuestions = [];
-        let currentQuestionIndex = 0;
-        let isInterviewActive = false;
-        let chatHistory = [];
-        let speakerName = "HR Agent";
+            // DOM elements
+            const chatMessagesEl = document.getElementById('chat-messages');
+            const speechButton = document.getElementById('speech-button');
+            const statusMessageEl = document.getElementById('status-message');
 
-        // Helper function to convert base64 PCM to WAV Blob
-        function base64ToWavBlob(base64Data, sampleRate = 16000, numChannels = 1, bitDepth = 16) {
-            const audioData = atob(base64Data);
-            const arrayBuffer = new ArrayBuffer(audioData.length);
-            const view = new Uint8Array(arrayBuffer);
-            for (let i = 0; i < audioData.length; i++) {
-                view[i] = audioData.charCodeAt(i);
+            // Set up Speech Recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let recognition = null;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = false; // Capture a single phrase
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+            } else {
+                statusMessageEl.textContent = 'Speech Recognition is not supported by your browser.';
+                speechButton.disabled = true;
+                return;
             }
 
-            const pcm16 = new Int16Array(arrayBuffer);
-            const wavData = new ArrayBuffer(44 + pcm16.length * 2);
-            const wavView = new DataView(wavData);
+            let isListening = false;
+            let audioPlayer = new Audio();
+            let isPlaying = false;
 
-            // WAV header
-            // RIFF chunk
-            writeString(wavView, 0, 'RIFF');
-            wavView.setUint32(4, 36 + pcm16.length * 2, true);
-            writeString(wavView, 8, 'WAVE');
-            // FMT chunk
-            writeString(wavView, 12, 'fmt ');
-            wavView.setUint32(16, 16, true);
-            wavView.setUint16(20, 1, true); // Audio format: PCM
-            wavView.setUint16(22, numChannels, true);
-            wavView.setUint32(24, sampleRate, true);
-            wavView.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);
-            wavView.setUint16(32, numChannels * bitDepth / 8, true);
-            wavView.setUint16(34, bitDepth, true);
-            // DATA chunk
-            writeString(wavView, 36, 'data');
-            wavView.setUint32(40, pcm16.length * 2, true);
+            // --- UI Functions ---
+            const appendMessage = (text, sender) => {
+                const messageEl = document.createElement('div');
+                messageEl.textContent = text;
+                messageEl.classList.add('message', sender === 'user' ? 'user-message' : 'ai-message');
+                chatMessagesEl.appendChild(messageEl);
+                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; // Auto-scroll to bottom
+            };
 
-            // Write PCM data
-            let offset = 44;
-            for (let i = 0; i < pcm16.length; i++) {
-                wavView.setInt16(offset, pcm16[i], true);
-                offset += 2;
-            }
+            const setStatus = (message) => {
+                statusMessageEl.innerHTML = message;
+            };
 
-            return new Blob([wavData], { type: 'audio/wav' });
-        }
+            const toggleButtonState = (listening, disabled) => {
+                isListening = listening;
+                speechButton.textContent = isListening ? 'Stop Talking' : 'Start Talking';
+                speechButton.disabled = disabled;
+                speechButton.classList.toggle('bg-red-500', isListening);
+                speechButton.classList.toggle('bg-violet-600', !isListening);
+            };
 
-        function writeString(view, offset, string) {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
-        }
+            const showLoadingDots = () => {
+                setStatus(`
+                    Thinking
+                    <span class="loading-dots">
+                        <span class="loading-dot bg-gray-400"></span>
+                        <span class="loading-dot bg-gray-400"></span>
+                        <span class="loading-dot bg-gray-400"></span>
+                    </span>
+                `);
+            };
 
-        // Function to create and append a chat message element
-        function appendMessage(role, text) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            // --- API Calls ---
 
-            const messageBubble = document.createElement('div');
-            messageBubble.className = `max-w-[70%] p-3 rounded-xl shadow-sm ${
-                role === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-200 text-gray-800 rounded-bl-none'
-            }`;
-            
-            const messageHeader = document.createElement('div');
-            messageHeader.className = `text-xs font-semibold mb-1 ${role === 'user' ? 'text-right' : 'text-left'}`;
-            messageHeader.textContent = role === 'user' ? 'You' : speakerName;
+            // Function to handle exponential backoff for API calls
+            const callApiWithBackoff = async (func, maxRetries = 5, delay = 1000) => {
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        const result = await func();
+                        return result;
+                    } catch (error) {
+                        if (error.status === 429 && i < maxRetries - 1) {
+                            await new Promise(res => setTimeout(res, delay));
+                            delay *= 2;
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            };
 
-            messageBubble.appendChild(messageHeader);
+            // Main function to get AI response (text and audio)
+            const getAiResponse = async (text) => {
+                showLoadingDots();
+                
+                // 1. Get Text Response from LLM
+                const textPayload = {
+                    contents: [{ parts: [{ text: text }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: {
+                        parts: [{ text: "You are a friendly and conversational AI companion. Keep your responses concise and helpful. Respond in a way that is good for a voice chat. Do not include markdown." }]
+                    },
+                };
+                
+                const textUrl = `${apiBaseUrl}/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
-            const messageText = document.createElement('div');
-            messageText.textContent = text;
-            messageBubble.appendChild(messageText);
+                const textResponse = await callApiWithBackoff(() => fetch(textUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(textPayload)
+                }));
 
-            messageDiv.appendChild(messageBubble);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
+                const textResult = await textResponse.json();
+                const aiText = textResult?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        // Function to speak the next question
-        async function speakQuestion(question) {
-            appendMessage('model', question);
-            sendBtn.disabled = true;
-            loadingSpinner.classList.remove('hidden');
+                if (!aiText) {
+                    setStatus('Could not get a response from the AI. Please try again.');
+                    toggleButtonState(false, false);
+                    return;
+                }
 
-            try {
-                const payload = {
-                    contents: [{
-                        parts: [{
-                            text: question
-                        }]
-                    }],
+                appendMessage(aiText, 'ai');
+
+                // 2. Get Audio Response from TTS
+                const audioPayload = {
+                    contents: [{ parts: [{ text: aiText }] }],
                     generationConfig: {
                         responseModalities: ["AUDIO"],
                         speechConfig: {
-                            voiceConfig: {
-                                prebuiltVoiceConfig: {
-                                    voiceName: "Kore"
-                                }
-                            }
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
                         }
                     },
+                    model: "gemini-2.5-flash-preview-tts"
                 };
 
-                const response = await fetch(ttsApiUrl, {
+                const audioUrl = `${apiBaseUrl}/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const audioResponse = await callApiWithBackoff(() => fetch(audioUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                    body: JSON.stringify(audioPayload)
+                }));
 
-                if (!response.ok) {
-                    throw new Error(`TTS HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                const audioData = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                const audioResult = await audioResponse.json();
+                const audioData = audioResult?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
                 if (audioData) {
-                    const audioBlob = base64ToWavBlob(audioData);
+                    // Convert base64 PCM data to a playable WAV blob
+                    const audioBlob = pcmToWav(audioData, 16000, 1);
                     const audioUrl = URL.createObjectURL(audioBlob);
+                    
                     audioPlayer.src = audioUrl;
-                    audioPlayer.play();
+                    audioPlayer.play().catch(e => console.error("Audio playback error:", e));
+
+                    audioPlayer.onended = () => {
+                        isPlaying = false;
+                        setStatus('Ready to chat.');
+                        toggleButtonState(false, false);
+                    };
+                } else {
+                    setStatus('AI response is ready, but audio could not be generated. Please try again.');
+                    toggleButtonState(false, false);
                 }
-
-            } catch (error) {
-                console.error('Error with TTS:', error);
-                appendMessage('model', 'Sorry, I couldn\'t generate the audio for this question.');
-            } finally {
-                loadingSpinner.classList.add('hidden');
-                sendBtn.disabled = false;
-                userInput.focus();
-            }
-        }
-        
-        // Main function to ask the next question or end the interview
-        async function askNextQuestion() {
-            if (currentQuestionIndex < interviewQuestions.length) {
-                const question = interviewQuestions[currentQuestionIndex];
-                await speakQuestion(question);
-                chatHistory.push({ role: 'model', parts: [{ text: question }] });
-            } else {
-                appendMessage('model', "That concludes our interview. Thank you for your time!");
-                isInterviewActive = false;
-                sendBtn.disabled = true;
-                userInput.disabled = true;
-            }
-        }
-
-        // Function to send a message (user answer) to the AI for feedback
-        async function processUserAnswer() {
-            const userResponse = userInput.value.trim();
-            if (userResponse.length === 0) return;
-
-            // Display user message
-            appendMessage('user', userResponse);
-            userInput.value = '';
-
-            // Get the last asked question
-            const lastQuestion = interviewQuestions[currentQuestionIndex];
+            };
             
-            // Add the user's response to chat history
-            chatHistory.push({ role: 'user', parts: [{ text: userResponse }] });
+            // Utility function to convert Base64 to ArrayBuffer
+            const base64ToArrayBuffer = (base64) => {
+                const binaryString = window.atob(base64);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes.buffer;
+            };
 
-            // Show loading spinner
-            loadingSpinner.classList.remove('hidden');
-            sendBtn.disabled = true;
+            // Utility function to convert raw PCM to WAV format
+            const pcmToWav = (base64Audio, sampleRate, numChannels) => {
+                const pcmData = base64ToArrayBuffer(base64Audio);
+                const view = new DataView(new ArrayBuffer(44 + pcmData.byteLength));
+                let offset = 0;
 
-            try {
-                // Construct the prompt for feedback
-                const prompt = `You are a professional HR manager and career coach. Your task is to provide constructive feedback on a candidate's answer to an interview question. The previous question was: "${lastQuestion}". The candidate's response was: "${userResponse}".
-
-                Please provide 1-2 concise, constructive points of feedback. Focus on what was good about the answer and one area for improvement. End your response by asking the next interview question. If you have no more questions to ask, provide a concluding remark.`;
-
-                const payload = {
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    systemInstruction: {
-                        parts: [{ text: "You are an HR professional. Your goal is to provide helpful feedback to a candidate and guide them through an interview." }]
-                    },
+                const writeString = (str) => {
+                    for (let i = 0; i < str.length; i++) {
+                        view.setUint8(offset++, str.charCodeAt(i));
+                    }
                 };
 
-                const response = await fetch(chatApiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                const writeUint32 = (val) => {
+                    view.setUint32(offset, val, true);
+                    offset += 4;
+                };
 
-                if (!response.ok) {
-                    throw new Error(`Chat HTTP error! status: ${response.status}`);
+                const writeUint16 = (val) => {
+                    view.setUint16(offset, val, true);
+                    offset += 2;
+                };
+
+                // RIFF chunk descriptor
+                writeString('RIFF');
+                writeUint32(36 + pcmData.byteLength);
+                writeString('WAVE');
+
+                // fmt chunk
+                writeString('fmt ');
+                writeUint32(16);
+                writeUint16(1); // Audio format 1=PCM
+                writeUint16(numChannels);
+                writeUint32(sampleRate);
+                writeUint32(sampleRate * numChannels * 2); // byte rate
+                writeUint16(numChannels * 2); // block align
+                writeUint16(16); // bits per sample
+
+                // data chunk
+                writeString('data');
+                writeUint32(pcmData.byteLength);
+
+                const pcmBytes = new Uint8Array(pcmData);
+                for (let i = 0; i < pcmBytes.length; i++) {
+                    view.setUint8(offset++, pcmBytes[i]);
                 }
 
-                const result = await response.json();
-                const aiFeedback = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                return new Blob([view], { type: 'audio/wav' });
+            };
 
-                if (aiFeedback) {
-                    currentQuestionIndex++;
-                    await speakQuestion(aiFeedback);
+            // --- Event Listeners ---
+            speechButton.addEventListener('click', () => {
+                if (isListening) {
+                    recognition.stop();
+                    toggleButtonState(false, true); // Disable button while processing
+                    setStatus('Processing...');
                 } else {
-                    appendMessage('model', 'Sorry, I couldn\'t generate feedback. Let\'s move on.');
-                    currentQuestionIndex++;
-                    await askNextQuestion();
+                    // If audio is playing, stop it first
+                    if (isPlaying) {
+                        audioPlayer.pause();
+                        audioPlayer.currentTime = 0;
+                        isPlaying = false;
+                    }
+                    recognition.start();
+                    toggleButtonState(true, false);
+                    setStatus('Listening...');
                 }
+            });
 
-            } catch (error) {
-                console.error('Error:', error);
-                appendMessage('model', 'An error occurred. Please try again.');
-                currentQuestionIndex++;
-                await askNextQuestion();
-            } finally {
-                loadingSpinner.classList.add('hidden');
-                sendBtn.disabled = false;
-                userInput.focus();
-            }
-        }
+            // Speech recognition events
+            recognition.onstart = () => {
+                setStatus('Listening...');
+                toggleButtonState(true, false);
+            };
 
-        // Event listeners
-        startInterviewBtn.addEventListener('click', () => {
-            const questionsText = questionsInput.value.trim();
-            if (questionsText.length === 0) {
-                appendMessage('model', 'Please provide at least one interview question.');
-                return;
-            }
-            interviewQuestions = questionsText.split('\n').map(q => q.trim()).filter(q => q.length > 0);
-            
-            setupContainer.classList.add('hidden');
-            chatWrapper.classList.remove('hidden');
-            isInterviewActive = true;
-            
-            appendMessage('model', "Welcome to the interview simulation. I will ask you questions from the list you provided. Please provide your best answers. Let's begin!");
-            
-            // Give a short delay before asking the first question
-            setTimeout(askNextQuestion, 2000);
-        });
-
-        sendBtn.addEventListener('click', () => {
-            if (isInterviewActive) {
-                processUserAnswer();
-            }
-        });
-
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                if (isInterviewActive) {
-                    processUserAnswer();
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (transcript) {
+                    appendMessage(transcript, 'user');
+                    getAiResponse(transcript);
+                } else {
+                    setStatus('Could not understand your voice. Please try again.');
+                    toggleButtonState(false, false);
                 }
-            }
-        });
+            };
 
+            recognition.onerror = (event) => {
+                console.error("Speech Recognition Error:", event.error);
+                if (event.error === 'not-allowed') {
+                    setStatus('Permission to use the microphone was denied. Please allow microphone access in your browser settings.');
+                } else if (event.error === 'no-speech') {
+                    setStatus('No speech was detected. Please try again and speak clearly.');
+                } else {
+                    setStatus(`Error: ${event.error}. Please try again.`);
+                }
+                toggleButtonState(false, false);
+            };
+
+            // When recognition ends
+            recognition.onend = () => {
+                // The button state is already handled by onresult or onerror.
+                // This is a failsafe.
+                if (statusMessageEl.textContent === 'Listening...') {
+                    setStatus('Stopped listening.');
+                    toggleButtonState(false, false);
+                }
+            };
+        });
     </script>
 </body>
 </html>
